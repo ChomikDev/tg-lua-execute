@@ -34,8 +34,10 @@ def start_command(message):
     bot.reply_to(message, (
         "Этат бот был сделан по порофлу\n\n"
         "execute (code) — запускает луа код\n"
+        "Работает только в группах:\n\n"
         "эаа — вызывает эаа\n"
-        "топ эаа — топ 10 лучших эаа"
+        "топ эаа — топ 10 лучших эаа\n"
+        "дайте скрипт — выдает лучший скрипт"
     ))
 
 @bot.message_handler(func=lambda message: message.chat.type != 'private')
