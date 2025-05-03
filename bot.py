@@ -69,7 +69,7 @@ def handle_all(message):
         username = message.from_user.username or f"id{message.from_user.id}"
         eaa_counter[username] = eaa_counter.get(username, 0) + 1
         save_eaa_data()
-        bot.reply_to(message, f"накопил в копилку эаа +1")
+        bot.reply_to(message, f"накопил эаа +1")
     elif text == "топ эаа":
         top = sorted(eaa_counter.items(), key=lambda x: x[1], reverse=True)[:10]
         lines = [f"{i+1}. @{user} - {count}" for i, (user, count) in enumerate(top)]
