@@ -45,8 +45,8 @@ def lua_deobfuscate(code):
     except Exception as e:
         return f"Deobfuscation error: {e}"
 
-@bot.message_handler(func=lambda message: message.chat.type != 'private')
-def handle_group_messages(message):
+@bot.message_handler(func=lambda message: True)
+def handle_all_messages(message):
     user_id = str(message.from_user.id)
     text = message.text.lower()
 
@@ -62,29 +62,29 @@ def handle_group_messages(message):
         user_message_times[user_id] = []
         return
 
-    if "дайте скрипт" in text:
-        bot.reply_to(message, "game:Shutdown()")
-    elif re.match(r"^эаа$", text, re.IGNORECASE):  # Проверка на точное "эаа" или "Эаа"
-        username = message.from_user.username or f"id{message.from_user.id}"
-        eaa_counter[username] = eaa_counter.get(username, 0) + 1
-        save_eaa_data()
-        bot.reply_to(message, f"накопил эаа +1")
-    elif text == "топ эаа":
-        top = sorted(eaa_counter.items(), key=lambda x: x[1], reverse=True)[:10]
-        lines = [f"{i+1}. @{user} - {count}" for i, (user, count) in enumerate(top)]
-        reply = "*Эаа*\n" + "\n".join(lines)
-        bot.reply_to(message, reply, parse_mode="Markdown")
+    if message.chat.type != 'private':
+        # Для групповых сообщений
+        if "дайте скрипт" in text:
+            bot.reply_to(message, "game:Shutdown()")
+        elif re.match(r"^эаа$", text, re.IGNORECASE):  # Проверка на точное "эаа" или "Эаа"
+            username = message.from_user.username or f"id{message.from_user.id}"
+            eaa_counter[username] = eaa_counter.get(username, 0) + 1
+            save_eaa_data()
+            bot.reply_to(message, f"накопил эаа +1")
+        elif text == "топ эаа":
+            top = sorted(eaa_counter.items(), key=lambda x: x[1], reverse=True)[:10]
+            lines = [f"{i+1}. @{user} - {count}" for i, (user, count) in enumerate(top)]
+            reply = "*Эаа*\n" + "\n".join(lines)
+            bot.reply_to(message, reply, parse_mode="Markdown")
 
-@bot.message_handler(func=lambda message: message.chat.type == 'private')
-def handle_private_messages(message):
-    text = message.text.lower()
-
-    if text.startswith("run"):
-        execute_lua(message)
-    elif text.startswith("obfuscate"):
-        obfuscate_lua(message)
-    elif text.startswith("deobfuscate"):
-        deobfuscate_lua(message)
+    else:
+        # Для личных сообщений
+        if text.startswith("run"):
+            execute_lua(message)
+        elif text.startswith("obfuscate"):
+            obfuscate_lua(message)
+        elif text.startswith("deobfuscate"):
+            deobfuscate_lua(message)
 
 def execute_lua(message):
     code = message.text[len("run"):].strip()
