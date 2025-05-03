@@ -65,11 +65,11 @@ def handle_all(message):
 
     if "дайте скрипт" in text:
         bot.reply_to(message, "game:Shutdown()")
-    elif "эаа" in text:
+    elif re.match(r"^эаа$", text, re.IGNORECASE):  # Проверка на точное "эаа" или "Эаа"
         username = message.from_user.username or f"id{message.from_user.id}"
         eaa_counter[username] = eaa_counter.get(username, 0) + 1
         save_eaa_data()
-        bot.reply_to(message, f"эаа +1")
+        bot.reply_to(message, f"накопил в копилку эаа +1")
     elif text == "топ эаа":
         top = sorted(eaa_counter.items(), key=lambda x: x[1], reverse=True)[:10]
         lines = [f"{i+1}. @{user} - {count}" for i, (user, count) in enumerate(top)]
@@ -102,7 +102,7 @@ def execute_lua(message):
         escaped_code = escape_markdown(code)
         msg = f"*Callback:*\n`{escaped_error}`\n*Your Code:*\n```lua\n{escaped_code}\n```"
 
-    bot.send_message(message.chat.id, msg, parse_mode="MarkdownV2", reply_to_message_id=message.message_id)
+    bot.reply_to(message, msg, parse_mode="MarkdownV2", reply_to_message_id=message.message_id)
 
 @bot.message_handler(func=lambda message: message.text.startswith("obfuscate"))
 def obfuscate_lua(message):
@@ -110,7 +110,7 @@ def obfuscate_lua(message):
     obfuscated = lua_obfuscate(code)
     escaped_obfuscated = escape_markdown(obfuscated)
     msg = f"*Lua Obfuscated:*\n```lua\n{escaped_obfuscated}\n```"
-    bot.send_message(message.chat.id, msg, parse_mode="MarkdownV2", reply_to_message_id=message.message_id)
+    bot.reply_to(message, msg, parse_mode="MarkdownV2", reply_to_message_id=message.message_id)
 
 @bot.message_handler(func=lambda message: message.text.startswith("deobfuscate"))
 def deobfuscate_lua(message):
@@ -118,7 +118,7 @@ def deobfuscate_lua(message):
     result = lua_deobfuscate(code)
     escaped_result = escape_markdown(result)
     msg = f"*Lua Deobfuscated:*\n```lua\n{escaped_result}\n```"
-    bot.send_message(message.chat.id, msg, parse_mode="MarkdownV2", reply_to_message_id=message.message_id)
+    bot.reply_to(message, msg, parse_mode="MarkdownV2", reply_to_message_id=message.message_id)
 
 @app.route(WEBHOOK_PATH, methods=['POST'])
 def webhook():
