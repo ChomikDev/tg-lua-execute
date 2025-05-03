@@ -47,21 +47,10 @@ def lua_deobfuscate(code):
         return f"Deobfuscation error: {e}"
 
 @bot.message_handler(func=lambda message: message.chat.type != 'private')
-def handle_all(message):
+def handle_group_only(message):
+    # Проверяем, что команда введена в группе
     user_id = str(message.from_user.id)
     text = message.text.lower()
-
-    # антиспам
-    now = time.time()
-    if user_id not in user_message_times:
-        user_message_times[user_id] = []
-    user_message_times[user_id].append(now)
-    user_message_times[user_id] = [t for t in user_message_times[user_id] if now - t < 3]
-
-    if len(user_message_times[user_id]) >= 3:
-        bot.reply_to(message, "завали ебало")
-        user_message_times[user_id] = []
-        return
 
     if "дайте скрипт" in text:
         bot.reply_to(message, "game:Shutdown()")
@@ -76,54 +65,49 @@ def handle_all(message):
         reply = "*Эаа*\n" + "\n".join(lines)
         bot.reply_to(message, reply, parse_mode="Markdown")
 
-@bot.message_handler(func=lambda message: message.text.strip().startswith("run"))
-def execute_lua(message):
-    # Убираем пробелы после команды "run"
-    code = message.text[len("run"):].strip()
-    output = []
+@bot.message_handler(func=lambda message: message.chat.type in ['private', 'group', 'supergroup'])
+def handle_lua_commands(message):
+    text = message.text.strip().lower()
 
-    def py_print(*args):
-        output.append(" ".join(str(arg) for arg in args))
+    # Если команда начинается с "run", "obfuscate" или "deobfuscate"
+    if text.startswith("run"):
+        code = text[len("run"):].strip()
+        output = []
 
-    lua = LuaRuntime(unpack_returned_tuples=True)
-    lua.globals()["print"] = py_print
+        def py_print(*args):
+            output.append(" ".join(str(arg) for arg in args))
 
-    try:
-        lua.execute(code)
-        if output:
-            result = "\n".join(output)
-            escaped_output = escape_markdown(result)
+        lua = LuaRuntime(unpack_returned_tuples=True)
+        lua.globals()["print"] = py_print
+
+        try:
+            lua.execute(code)
+            if output:
+                result = "\n".join(output)
+                escaped_output = escape_markdown(result)
+                escaped_code = escape_markdown(code)
+                msg = f"*Callback:*\n```lua\n{escaped_output}\n```\n*Your Code:*\n```lua\n{escaped_code}\n```"
+            else:
+                escaped_code = escape_markdown(code)
+                msg = f"*Successfully runned!*\n```lua\n{escaped_code}\n```"
+        except Exception as e:
+            escaped_error = str(e).replace('`', "'")
             escaped_code = escape_markdown(code)
-            msg = f"*Callback:*\n```lua\n{escaped_output}\n```\n*Your Code:*\n```lua\n{escaped_code}\n```"
-        else:
-            escaped_code = escape_markdown(code)
-            msg = f"*Successfully runned!*\n```lua\n{escaped_code}\n```"
-    except Exception as e:
-        escaped_error = str(e).replace('`', "'")
-        escaped_code = escape_markdown(code)
-        msg = f"*Callback:*\n`{escaped_error}`\n*Your Code:*\n```lua\n{escaped_code}\n```"
+            msg = f"*Callback:*\n`{escaped_error}`\n*Your Code:*\n```lua\n{escaped_code}\n```"
 
-    bot.reply_to(message, msg, parse_mode="MarkdownV2", reply_to_message_id=message.message_id)
-
-
-@bot.message_handler(func=lambda message: message.text.strip().startswith("obfuscate"))
-def obfuscate_lua(message):
-    # Убираем пробелы после команды "obfuscate"
-    code = message.text[len("obfuscate"):].strip()
-    obfuscated = lua_obfuscate(code)
-    escaped_obfuscated = escape_markdown(obfuscated)
-    msg = f"*Lua Obfuscated:*\n```lua\n{escaped_obfuscated}\n```"
-    bot.reply_to(message, msg, parse_mode="MarkdownV2", reply_to_message_id=message.message_id)
-
-
-@bot.message_handler(func=lambda message: message.text.strip().startswith("deobfuscate"))
-def deobfuscate_lua(message):
-    # Убираем пробелы после команды "deobfuscate"
-    code = message.text[len("deobfuscate"):].strip()
-    result = lua_deobfuscate(code)
-    escaped_result = escape_markdown(result)
-    msg = f"*Lua Deobfuscated:*\n```lua\n{escaped_result}\n```"
-    bot.reply_to(message, msg, parse_mode="MarkdownV2", reply_to_message_id=message.message_id)
+        bot.reply_to(message, msg, parse_mode="MarkdownV2", reply_to_message_id=message.message_id)
+    elif text.startswith("obfuscate"):
+        code = text[len("obfuscate"):].strip()
+        obfuscated = lua_obfuscate(code)
+        escaped_obfuscated = escape_markdown(obfuscated)
+        msg = f"*Lua Obfuscated:*\n```lua\n{escaped_obfuscated}\n```"
+        bot.reply_to(message, msg, parse_mode="MarkdownV2", reply_to_message_id=message.message_id)
+    elif text.startswith("deobfuscate"):
+        code = text[len("deobfuscate"):].strip()
+        result = lua_deobfuscate(code)
+        escaped_result = escape_markdown(result)
+        msg = f"*Lua Deobfuscated:*\n```lua\n{escaped_result}\n```"
+        bot.reply_to(message, msg, parse_mode="MarkdownV2", reply_to_message_id=message.message_id)
 
 @app.route(WEBHOOK_PATH, methods=['POST'])
 def webhook():
@@ -139,4 +123,4 @@ def index():
 if __name__ == '__main__':
     bot.remove_webhook()
     bot.set_webhook(url=WEBHOOK_URL)
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT",
