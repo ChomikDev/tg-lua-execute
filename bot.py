@@ -76,8 +76,9 @@ def handle_all(message):
         reply = "*Эаа*\n" + "\n".join(lines)
         bot.reply_to(message, reply, parse_mode="Markdown")
 
-@bot.message_handler(func=lambda message: message.text.startswith("run"))
+@bot.message_handler(func=lambda message: message.text.strip().startswith("run"))
 def execute_lua(message):
+    # Убираем пробелы после команды "run"
     code = message.text[len("run"):].strip()
     output = []
 
@@ -104,16 +105,20 @@ def execute_lua(message):
 
     bot.reply_to(message, msg, parse_mode="MarkdownV2", reply_to_message_id=message.message_id)
 
-@bot.message_handler(func=lambda message: message.text.startswith("obfuscate"))
+
+@bot.message_handler(func=lambda message: message.text.strip().startswith("obfuscate"))
 def obfuscate_lua(message):
+    # Убираем пробелы после команды "obfuscate"
     code = message.text[len("obfuscate"):].strip()
     obfuscated = lua_obfuscate(code)
     escaped_obfuscated = escape_markdown(obfuscated)
     msg = f"*Lua Obfuscated:*\n```lua\n{escaped_obfuscated}\n```"
     bot.reply_to(message, msg, parse_mode="MarkdownV2", reply_to_message_id=message.message_id)
 
-@bot.message_handler(func=lambda message: message.text.startswith("deobfuscate"))
+
+@bot.message_handler(func=lambda message: message.text.strip().startswith("deobfuscate"))
 def deobfuscate_lua(message):
+    # Убираем пробелы после команды "deobfuscate"
     code = message.text[len("deobfuscate"):].strip()
     result = lua_deobfuscate(code)
     escaped_result = escape_markdown(result)
