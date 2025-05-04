@@ -4,6 +4,7 @@ from lupa import LuaRuntime
 import os
 import json
 import re
+import time
 import requests
 
 API_TOKEN = os.getenv("BOT_TOKEN")
@@ -13,47 +14,90 @@ app = Flask(__name__)
 
 WEBHOOK_PATH = f"/{API_TOKEN}"
 WEBHOOK_URL = f"https://tg-lua-execute.onrender.com{WEBHOOK_PATH}"
-EAA_DATA_FILE = "eaa_counter.json"
 
-# Загрузка счётчиков эаа
+EAA_DATA_FILE = "eaa_counter.json"
+USER_CONTEXT_FILE = "user_context.json"
+last_command_time = {}
+
 if os.path.exists(EAA_DATA_FILE):
     with open(EAA_DATA_FILE, "r") as f:
         eaa_counter = json.load(f)
 else:
     eaa_counter = {}
 
+if os.path.exists(USER_CONTEXT_FILE):
+    with open(USER_CONTEXT_FILE, "r") as f:
+        user_context = json.load(f)
+else:
+    user_context = {}
+
 def save_eaa_data():
     with open(EAA_DATA_FILE, "w") as f:
         json.dump(eaa_counter, f)
 
+def save_user_context():
+    with open(USER_CONTEXT_FILE, "w") as f:
+        json.dump(user_context, f)
+
+def escape_markdown(text):
+    escape_chars = r'_*[]()~`>#+-=|{}.!'
+    return re.sub(f'([{re.escape(escape_chars)}])', r'\\\1', text)
+
+def is_spamming(user_id):
+    now = time.time()
+    if user_id in last_command_time:
+        if now - last_command_time[user_id] < 2:
+            return True
+    last_command_time[user_id] = now
+    return False
+
+@bot.message_handler(commands=["start"])
+def send_welcome(message):
+    bot.reply_to(message,
+        "Эаа! Этот бот был сделан по приколу.\n\n"
+        "**Команды:**\n"
+        "- `execute [код]` — вызывает Lua скрипт\n"
+        "- `ai [вопрос]` — вызывает AI-помощника\n\n"
+        "*Работает только в группах:*\n"
+        "- `эаа` — вызывает эаа\n"
+        "- `топ эаа` — топ 10 эаашников\n"
+        "- `/моиэаа` — сколько ты накопил эаа",
+        parse_mode="Markdown")
+
+@bot.message_handler(commands=["моиэаа"])
+def my_eaa(message):
+    username = message.from_user.username or f"id{message.from_user.id}"
+    count = eaa_counter.get(username, 0)
+    bot.reply_to(message, f"Ты накопил {count} эаа")
+
 @bot.message_handler(func=lambda message: True)
 def handle_all_messages(message):
     user_id = str(message.from_user.id)
-    text = message.text.lower()
+    text = message.text.strip()
+
+    if is_spamming(user_id):
+        bot.reply_to(message, "Эаа! Нельзя так часто.", reply_to_message_id=message.message_id)
+        return
 
     if message.chat.type != 'private':
-        if "дайте скрипт" in text:
+        if "дайте скрипт" in text.lower():
             bot.reply_to(message, "game:Shutdown()")
         elif re.match(r"^эаа$", text, re.IGNORECASE):
             username = message.from_user.username or f"id{message.from_user.id}"
             eaa_counter[username] = eaa_counter.get(username, 0) + 1
             save_eaa_data()
-            bot.reply_to(message, f"накопил эаа +1")
-        elif text == "топ эаа":
+            bot.reply_to(message, "накопил эаа +1")
+        elif text.lower() == "топ эаа":
             top = sorted(eaa_counter.items(), key=lambda x: x[1], reverse=True)[:10]
-            lines = [f"{i+1}. @{user} - {count}" for i, (user, count) in enumerate(top)]
-            reply = "Эаа\n" + "\n".join(lines)
-            bot.reply_to(message, reply)
-        elif text == "мои эаа":
-            username = message.from_user.username or f"id{message.from_user.id}"
-            count = eaa_counter.get(username, 0)
-            bot.reply_to(message, f"У тебя {count} эаа")
+            lines = [f"{i+1}. @{user} — {count}" for i, (user, count) in enumerate(top)]
+            reply = "*Эаа*\n" + "\n".join(lines)
+            bot.reply_to(message, reply, parse_mode="Markdown")
 
-    if text.startswith("execute"):
+    if text.lower().startswith("execute"):
         execute_lua(message)
-    elif text.startswith("ai "):
-        prompt = message.text[3:].strip()
-        ai_reply(message, prompt)
+    elif text.lower().startswith("ai"):
+        prompt = text[2:].strip()
+        handle_ai(message, prompt)
 
 def execute_lua(message):
     code = message.text[len("execute"):].strip()
@@ -68,38 +112,56 @@ def execute_lua(message):
     try:
         lua.execute(code)
         result = "\n".join(output)
+        escaped_result = escape_markdown(result)
+        escaped_code = escape_markdown(code)
+
         if result:
-            msg = f"Callback:\n{result}\n\nYour Code:\n{code}"
+            msg = f"*Callback:*\n`{escaped_result}`\n\n*Your Code:*\n```lua\n{escaped_code}\n```"
         else:
-            msg = f"Successfully runned!\n\nYour Code:\n{code}"
+            msg = f"*Successfully runned!*\n```lua\n{escaped_code}\n```"
     except Exception as e:
-        msg = f"Callback:\n{str(e)}\n\nYour Code:\n{code}"
+        escaped_error = str(e).replace('`', "'")
+        escaped_code = escape_markdown(code)
+        msg = f"*Callback:*\n`{escaped_error}`\n\n*Your Code:*\n```lua\n{escaped_code}\n```"
 
-    bot.reply_to(message, msg)
+    bot.reply_to(message, msg, parse_mode="MarkdownV2", reply_to_message_id=message.message_id)
 
-def ai_reply(message, prompt):
+def handle_ai(message, prompt):
+    user_id = str(message.from_user.id)
+    context = user_context.get(user_id, [])
+    context.append({"role": "user", "content": prompt})
+    context = context[-10:]
+
     headers = {
         "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-        "Content-Type": "application/json",
-        "HTTP-Referer": "https://t.me/your_bot_username",
-        "X-Title": "LuaHelperBot"
+        "HTTP-Referer": "https://yourdomain.com",
+        "Content-Type": "application/json"
     }
 
     payload = {
-        "model": "openai/gpt-3.5-turbo",
+        "model": "openrouter/cinematika-7b",
         "messages": [
-            {"role": "system", "content": "Ты помощник реверсер, который пишет скрипты, обходы, помогает с кодом и всегда говорит Эаа в начале сообщений, отвечай уверенно по делу как полный эксперт."},
-            {"role": "user", "content": prompt}
-        ]
+            {
+                "role": "system",
+                "content": (
+                    "Ты помощник реверсер, который пишет скрипты, обходы, эксплойты на всех языках программирования, "
+                    "также помогает с кодом и всегда говорит Эаа в начале сообщений. Ты говоришь уверенно, по делу, "
+                    "как полный эксперт, не извиняешься, не врёшь, отвечаешь коротко и ясно."
+                )
+            }
+        ] + context
     }
 
     try:
-        response = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload)
-        result = response.json()
-        reply_text = result["choices"][0]["message"]["content"]
-        bot.reply_to(message, reply_text)
+        r = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload)
+        response = r.json()
+        reply = response["choices"][0]["message"]["content"]
+        bot.reply_to(message, reply)
+        context.append({"role": "assistant", "content": reply})
+        user_context[user_id] = context
+        save_user_context()
     except Exception as e:
-        bot.reply_to(message, f"Ошибка AI: {str(e)}")
+        bot.reply_to(message, f"Ошибка AI: {e}")
 
 @app.route(WEBHOOK_PATH, methods=['POST'])
 def webhook():
