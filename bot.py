@@ -139,21 +139,23 @@ def handle_ai(message, prompt):
     }
 
     payload = {
-        "model": "openrouter/cinematika-7b",
+        "model": "gpt-3.5-turbo",  # Используем ChatGPT 3.5 Turbo
         "messages": [
             {
                 "role": "system",
                 "content": (
-                    "Ты помощник реверсер, который пишет скрипты, обходы, эксплойты на всех языках программирования, "
-                    "также помогает с кодом и всегда говорит Эаа в начале сообщений. Ты говоришь уверенно, по делу, "
+                    "Ты помощник реверсер в роблоксе, помогаешь писать скрипты, эксплойты, бекдоры, обходы на C++ так и на луа как полный эксперт. "
+                    "Знает все про эксплойты в роблоксе методы обхода как хакер."
                 )
             }
         ] + context
     }
 
     try:
-        r = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload)
+        r = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload)
         response = r.json()
+
+        # Проверка, существует ли ключ 'choices' в ответе
         if "choices" in response:
             reply = response["choices"][0]["message"]["content"]
             bot.reply_to(message, reply)
@@ -161,6 +163,7 @@ def handle_ai(message, prompt):
             user_context[user_id] = context
             save_user_context()
         else:
+            # В случае отсутствия ключа 'choices' сообщим об ошибке
             bot.reply_to(message, "Ошибка: не получен ответ от AI. Пожалуйста, попробуйте позже.")
             print(f"Unexpected API response: {response}")  # Логируем неожиданный ответ
 
