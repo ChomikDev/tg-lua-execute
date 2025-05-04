@@ -43,10 +43,10 @@ def escape_markdown(text):
     escape_chars = r'_*[]()~`>#+-=|{}.!'
     return re.sub(f'([{re.escape(escape_chars)}])', r'\\\1', text)
 
-def is_spamming(user_id):
+def is_spamming(user_id, cooldown=2):
     now = time.time()
     if user_id in last_command_time:
-        if now - last_command_time[user_id] < 2:
+        if now - last_command_time[user_id] < cooldown:
             return True
     last_command_time[user_id] = now
     return False
@@ -133,22 +133,22 @@ def handle_ai(message, prompt):
         user_context[user_id] = []
 
     user_context[user_id].append({"role": "user", "content": prompt})
-
     if len(user_context[user_id]) > 10:
         user_context[user_id] = user_context[user_id][-10:]
 
     headers = {
         "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-        "Content-Type": "application/json",
+        "Content-Type": "application/json"
     }
 
     payload = {
-        "model": "openrouter/openai/gpt-3.5-turbo",
+        "model": "openai/gpt-3.5-turbo",
         "messages": [
             {
                 "role": "system",
                 "content": (
-                    "Ты помощник реверсер в Roblox, пишешь скрипты, читаешь эксплойты, знаешь обходы античитов, C++ и Lua."
+                    "Ты помощник реверсер в Roblox. Помогаешь писать скрипты, эксплойты, обходы на Lua и C++. "
+                    "Ты эксперт по хакерским методам и техническим деталям Roblox-эксплойтов."
                 )
             }
         ] + user_context[user_id]
@@ -156,17 +156,28 @@ def handle_ai(message, prompt):
 
     try:
         r = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload)
-        response = r.json()
 
-        reply = response.get("choices", [{}])[0].get("message", {}).get("content", "Ошибка: Не удалось получить ответ от AI.")
+        if r.status_code != 200:
+            if r.status_code == 401:
+                bot.reply_to(message, "Ошибка: Неверный API ключ OpenRouter.")
+            elif r.status_code == 403:
+                bot.reply_to(message, "Ошибка: Доступ к модели запрещён или превышен лимит.")
+            elif r.status_code == 429:
+                bot.reply_to(message, "Ошибка: Слишком много запросов. Подожди немного.")
+            else:
+                bot.reply_to(message, f"Ошибка AI: {r.status_code} — {r.text}")
+            return
+
+        response = r.json()
+        reply = response.get("choices", [{}])[0].get("message", {}).get("content", "Ошибка: Пустой ответ от OpenRouter.")
         bot.reply_to(message, reply)
 
         user_context[user_id].append({"role": "assistant", "content": reply})
         save_user_context()
 
     except Exception as e:
-        print("AI Error:", r.text)
         bot.reply_to(message, f"Ошибка AI: {e}")
+        print(f"AI Exception: {e}")
 
 @app.route(WEBHOOK_PATH, methods=['POST'])
 def webhook():
