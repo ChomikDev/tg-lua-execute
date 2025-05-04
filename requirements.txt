@@ -1,6 +1,6 @@
 pyTelegramBotAPI
 lupa
 Flask
-openai==0.28.1
+requests
 
 
