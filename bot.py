@@ -25,9 +25,19 @@ if os.path.exists(EAA_DATA_FILE):
 else:
     eaa_counter = {}
 
+if os.path.exists(USER_CONTEXT_FILE):
+    with open(USER_CONTEXT_FILE, "r") as f:
+        user_context = json.load(f)
+else:
+    user_context = {}
+
 def save_eaa_data():
     with open(EAA_DATA_FILE, "w") as f:
         json.dump(eaa_counter, f)
+
+def save_user_context():
+    with open(USER_CONTEXT_FILE, "w") as f:
+        json.dump(user_context, f)
 
 def escape_markdown(text):
     escape_chars = r'_*[]()~`>#+-=|{}.!'
@@ -117,6 +127,19 @@ def execute_lua(message):
     bot.reply_to(message, msg, parse_mode="MarkdownV2", reply_to_message_id=message.message_id)
 
 def handle_ai(message, prompt):
+    user_id = str(message.from_user.id)
+
+    # Инициализация памяти (context) для каждого пользователя
+    if user_id not in user_context:
+        user_context[user_id] = []
+
+    # Добавляем пользовательский запрос в память
+    user_context[user_id].append({"role": "user", "content": prompt})
+
+    # Ограничение на количество сообщений в памяти (например, последние 10)
+    if len(user_context[user_id]) > 10:
+        user_context[user_id] = user_context[user_id][-10:]
+
     headers = {
         "Authorization": f"Bearer {OPENROUTER_API_KEY}",
         "HTTP-Referer": "https://yourdomain.com",
@@ -132,17 +155,21 @@ def handle_ai(message, prompt):
                     "Ты помощник реверсер в роблоксе, помогаешь писать скрипты, эксплойты, бекдоры, обходы на C++ так и на луа как полный эксперт. "
                     "Знает все про эксплойты в роблоксе методы обхода как хакер."
                 )
-            },
-            {"role": "user", "content": prompt}
-        ]
+            }
+        ] + user_context[user_id]
     }
 
     try:
         r = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload)
         response = r.json()
 
-        reply = response["choices"][0]["message"]["content"]
+        # Прямо выводим содержимое ответа без проверки на 'choices'
+        reply = response.get("choices", [{}])[0].get("message", {}).get("content", "Ошибка: Не удалось получить ответ от AI.")
         bot.reply_to(message, reply)
+
+        # Добавляем ответ AI в память
+        user_context[user_id].append({"role": "assistant", "content": reply})
+        save_user_context()  # Сохраняем контекст
 
     except Exception as e:
         bot.reply_to(message, f"Ошибка AI: {e}")
