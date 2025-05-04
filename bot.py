@@ -1,9 +1,9 @@
 import telebot
 from flask import Flask, request
 from lupa import LuaRuntime
-import re
 import os
 import json
+import re
 
 API_TOKEN = os.getenv("BOT_TOKEN")
 bot = telebot.TeleBot(API_TOKEN)
@@ -25,39 +25,34 @@ def save_eaa_data():
     with open(EAA_DATA_FILE, "w") as f:
         json.dump(eaa_counter, f)
 
-def escape_markdown_v2(text):
+def escape_markdown(text):
     escape_chars = r'_*[]()~`>#+-=|{}.!'
     return re.sub(f'([{re.escape(escape_chars)}])', r'\\\1', text)
 
-@bot.message_handler(commands=['start'])
-def start_command(message):
-    bot.reply_to(message, (
-        "Этат бот был сделан по порофлу\n\n"
-        "execute (code) — запускает луа код\n"
-        "Работает только в группах:\n\n"
-        "эаа — вызывает эаа\n"
-        "топ эаа — топ 10 лучших эаа\n"
-        "дайте скрипт — выдает лучший скрипт"
-    ))
-
-@bot.message_handler(func=lambda message: message.chat.type != 'private')
-def group_only_commands(message):
+@bot.message_handler(func=lambda message: True)
+def handle_all_messages(message):
+    user_id = str(message.from_user.id)
     text = message.text.lower()
-    username = message.from_user.username or f"id{message.from_user.id}"
 
-    if "дайте скрипт" in text:
-        bot.reply_to(message, "game:Shutdown()")
-    elif re.match(r"^эаа$", text, re.IGNORECASE):
-        eaa_counter[username] = eaa_counter.get(username, 0) + 1
-        save_eaa_data()
-        bot.reply_to(message, f"накопил эаа +1")
-    elif text == "топ эаа":
-        top = sorted(eaa_counter.items(), key=lambda x: x[1], reverse=True)[:10]
-        lines = [f"{i+1}. @{user} - {count}" for i, (user, count) in enumerate(top)]
-        reply = "*Эаа*\n" + "\n".join(lines)
-        bot.reply_to(message, reply, parse_mode="Markdown")
+    if message.chat.type != 'private':
+        # Только для групп
+        if "дайте скрипт" in text:
+            bot.reply_to(message, "game:Shutdown()")
+        elif re.match(r"^эаа$", text, re.IGNORECASE):
+            username = message.from_user.username or f"id{message.from_user.id}"
+            eaa_counter[username] = eaa_counter.get(username, 0) + 1
+            save_eaa_data()
+            bot.reply_to(message, f"накопил эаа +1")
+        elif text == "топ эаа":
+            top = sorted(eaa_counter.items(), key=lambda x: x[1], reverse=True)[:10]
+            lines = [f"{i+1}. @{user} - {count}" for i, (user, count) in enumerate(top)]
+            reply = "*Эаа*\n" + "\n".join(lines)
+            bot.reply_to(message, reply, parse_mode="Markdown")
 
-@bot.message_handler(func=lambda message: message.text.startswith("execute"))
+    # execute работает везде
+    if text.startswith("execute"):
+        execute_lua(message)
+
 def execute_lua(message):
     code = message.text[len("execute"):].strip()
     output = []
@@ -71,15 +66,16 @@ def execute_lua(message):
     try:
         lua.execute(code)
         result = "\n".join(output)
-        escaped_code = escape_markdown_v2(code)
+        escaped_result = escape_markdown(result)
+        escaped_code = escape_markdown(code)
 
         if result:
-            msg = f"*Callback:*\n```lua\n{result}\n```\n*Your Code:*\n```lua\n{escaped_code}\n```"
+            msg = f"*Callback:*\n```lua\n{escaped_result}\n```\n*Your Code:*\n```lua\n{escaped_code}\n```"
         else:
-            msg = f"*Successfully runned!*\n*Your Code:*\n```lua\n{escaped_code}\n```"
+            msg = f"*Successfully runned!*\n```lua\n{escaped_code}\n```"
     except Exception as e:
-        escaped_error = escape_markdown_v2(str(e).replace('`', "'"))
-        escaped_code = escape_markdown_v2(code)
+        escaped_error = str(e).replace('`', "'")
+        escaped_code = escape_markdown(code)
         msg = f"*Callback:*\n`{escaped_error}`\n*Your Code:*\n```lua\n{escaped_code}\n```"
 
     bot.reply_to(message, msg, parse_mode="MarkdownV2", reply_to_message_id=message.message_id)
