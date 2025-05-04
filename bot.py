@@ -76,8 +76,8 @@ def handle_all_messages(message):
         elif text.lower() == "топ эаа":
             top = sorted(eaa_counter.items(), key=lambda x: x[1], reverse=True)[:10]
             lines = [f"{i+1}. @{user} — {count}" for i, (user, count) in enumerate(top)]
-            reply = "*Эаа*\n" + "\n".join(lines)
-            bot.reply_to(message, reply, parse_mode="Markdown")
+            reply = "Топ 10 эаа:\n" + "\n".join(lines)
+            bot.reply_to(message, reply)
 
     if text.lower().startswith("execute"):
         execute_lua(message)
