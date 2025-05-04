@@ -1,14 +1,13 @@
 import telebot
 from flask import Flask, request
 from lupa import LuaRuntime
-import openai
 import os
 import json
 import re
+import requests
 
 API_TOKEN = os.getenv("BOT_TOKEN")
-OPENAI_KEY = os.getenv("OPENAI_API_KEY")
-openai.api_key = OPENAI_KEY
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 
 bot = telebot.TeleBot(API_TOKEN)
 app = Flask(__name__)
@@ -33,20 +32,53 @@ def escape_markdown(text):
     escape_chars = r'_*[]()~`>#+-=|{}.!'
     return re.sub(f'([{re.escape(escape_chars)}])', r'\\\1', text)
 
+def call_ai_model(prompt):
+    try:
+        headers = {
+            "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+            "Content-Type": "application/json"
+        }
+
+        data = {
+            "model": "mistralai/mixtral-8x7b-instruct",
+            "messages": [
+                {"role": "system", "content": "Ты помощник, который пишет Lua-скрипты и может немного материться, но не оскорбляет участников чата."},
+                {"role": "user", "content": prompt}
+            ]
+        }
+
+        response = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=data)
+        response.raise_for_status()
+        return response.json()["choices"][0]["message"]["content"]
+    except Exception as e:
+        return f"Ошибка AI: {e}"
+
 @bot.message_handler(func=lambda message: True)
 def handle_all_messages(message):
     user_id = str(message.from_user.id)
-    text = message.text.lower()
+    text = message.text
+
+    if message.text.lower() == "/start":
+        bot.reply_to(message,
+            "Этат бот был сделан по приколу\n\n"
+            "execute (code) — вызывает луа скрипт\n\n"
+            "А эта работает только в группах:\n"
+            "эаа — вызывает эаа\n"
+            "топ эаа — топ 10 эаашников"
+        )
+        return
 
     if message.chat.type != 'private':
-        if "дайте скрипт" in text:
+        # Только для групп
+        lowered = text.lower()
+        if "дайте скрипт" in lowered:
             bot.reply_to(message, "game:Shutdown()")
-        elif re.match(r"^эаа$", text, re.IGNORECASE):
+        elif lowered == "эаа":
             username = message.from_user.username or f"id{message.from_user.id}"
             eaa_counter[username] = eaa_counter.get(username, 0) + 1
             save_eaa_data()
-            bot.reply_to(message, f"накопил эаа +1")
-        elif text == "топ эаа":
+            bot.reply_to(message, "накопил эаа +1")
+        elif lowered == "топ эаа":
             top = sorted(eaa_counter.items(), key=lambda x: x[1], reverse=True)[:10]
             lines = [f"{i+1}. @{user} - {count}" for i, (user, count) in enumerate(top)]
             reply = "*Эаа*\n" + "\n".join(lines)
@@ -54,10 +86,11 @@ def handle_all_messages(message):
 
     if text.startswith("execute"):
         execute_lua(message)
-
-    if text.startswith("ai "):
-        ai_prompt = message.text[3:].strip()
-        reply_from_ai(message, ai_prompt)
+    elif text.startswith("ai "):
+        prompt = message.text[3:].strip()
+        response = call_ai_model(prompt)
+        escaped_response = escape_markdown(response)
+        bot.reply_to(message, f"*AI:*\n```{escaped_response}```", parse_mode="MarkdownV2")
 
 def execute_lua(message):
     code = message.text[len("execute"):].strip()
@@ -80,26 +113,11 @@ def execute_lua(message):
         else:
             msg = f"*Successfully runned!*\n```lua\n{escaped_code}\n```"
     except Exception as e:
-        escaped_error = str(e).replace('`', "'")
+        escaped_error = escape_markdown(str(e))
         escaped_code = escape_markdown(code)
         msg = f"*Callback:*\n`{escaped_error}`\n*Your Code:*\n```lua\n{escaped_code}\n```"
 
     bot.reply_to(message, msg, parse_mode="MarkdownV2", reply_to_message_id=message.message_id)
-
-def reply_from_ai(message, prompt):
-    try:
-        completion = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": "system", "content": "Ты Telegram-бот, который помогает писать Lua-код и позволяет нецензурные выражения, если они не оскорбляют участников чата."},
-                {"role": "user", "content": prompt}
-            ],
-            temperature=0.7
-        )
-        reply = completion.choices[0].message.content
-        bot.reply_to(message, reply[:4000])  # Telegram ограничение по длине
-    except Exception as e:
-        bot.reply_to(message, f"Ошибка AI: {e}")
 
 @app.route(WEBHOOK_PATH, methods=['POST'])
 def webhook():
