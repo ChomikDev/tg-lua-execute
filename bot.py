@@ -70,7 +70,7 @@ def execute_lua(message):
         escaped_code = escape_markdown(code)
 
         if result:
-            msg = f"*Callback:*\n```lua\n{escaped_result}\n```\n*Your Code:*\n```lua\n{escaped_code}\n```"
+            msg = f"*Callback:*\n`{escaped_result}`\n*Your Code:*\n```lua\n{escaped_code}\n```"
         else:
             msg = f"*Successfully runned!*\n```lua\n{escaped_code}\n```"
     except Exception as e:
