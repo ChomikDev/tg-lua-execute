@@ -146,7 +146,6 @@ def handle_ai(message, prompt):
                 "content": (
                     "Ты помощник реверсер, который пишет скрипты, обходы, эксплойты на всех языках программирования, "
                     "также помогает с кодом и всегда говорит Эаа в начале сообщений. Ты говоришь уверенно, по делу, "
-                    "как полный эксперт, не извиняешься, не врёшь, отвечаешь коротко и ясно."
                 )
             }
         ] + context
@@ -155,13 +154,19 @@ def handle_ai(message, prompt):
     try:
         r = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload)
         response = r.json()
-        reply = response["choices"][0]["message"]["content"]
-        bot.reply_to(message, reply)
-        context.append({"role": "assistant", "content": reply})
-        user_context[user_id] = context
-        save_user_context()
+        if "choices" in response:
+            reply = response["choices"][0]["message"]["content"]
+            bot.reply_to(message, reply)
+            context.append({"role": "assistant", "content": reply})
+            user_context[user_id] = context
+            save_user_context()
+        else:
+            bot.reply_to(message, "Ошибка: не получен ответ от AI. Пожалуйста, попробуйте позже.")
+            print(f"Unexpected API response: {response}")  # Логируем неожиданный ответ
+
     except Exception as e:
         bot.reply_to(message, f"Ошибка AI: {e}")
+        print(f"Exception during AI request: {e}")  # Логируем исключение
 
 @app.route(WEBHOOK_PATH, methods=['POST'])
 def webhook():
