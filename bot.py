@@ -1,11 +1,15 @@
 import telebot
 from flask import Flask, request
 from lupa import LuaRuntime
+import openai
 import os
 import json
 import re
 
 API_TOKEN = os.getenv("BOT_TOKEN")
+OPENAI_KEY = os.getenv("OPENAI_API_KEY")
+openai.api_key = OPENAI_KEY
+
 bot = telebot.TeleBot(API_TOKEN)
 app = Flask(__name__)
 
@@ -35,7 +39,6 @@ def handle_all_messages(message):
     text = message.text.lower()
 
     if message.chat.type != 'private':
-        # Только для групп
         if "дайте скрипт" in text:
             bot.reply_to(message, "game:Shutdown()")
         elif re.match(r"^эаа$", text, re.IGNORECASE):
@@ -49,9 +52,12 @@ def handle_all_messages(message):
             reply = "*Эаа*\n" + "\n".join(lines)
             bot.reply_to(message, reply, parse_mode="Markdown")
 
-    # execute работает везде
     if text.startswith("execute"):
         execute_lua(message)
+
+    if text.startswith("ai "):
+        ai_prompt = message.text[3:].strip()
+        reply_from_ai(message, ai_prompt)
 
 def execute_lua(message):
     code = message.text[len("execute"):].strip()
@@ -79,6 +85,21 @@ def execute_lua(message):
         msg = f"*Callback:*\n`{escaped_error}`\n*Your Code:*\n```lua\n{escaped_code}\n```"
 
     bot.reply_to(message, msg, parse_mode="MarkdownV2", reply_to_message_id=message.message_id)
+
+def reply_from_ai(message, prompt):
+    try:
+        completion = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "Ты Telegram-бот, который помогает писать Lua-код и позволяет нецензурные выражения, если они не оскорбляют участников чата."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.7
+        )
+        reply = completion.choices[0].message.content
+        bot.reply_to(message, reply[:4000])  # Telegram ограничение по длине
+    except Exception as e:
+        bot.reply_to(message, f"Ошибка AI: {e}")
 
 @app.route(WEBHOOK_PATH, methods=['POST'])
 def webhook():
