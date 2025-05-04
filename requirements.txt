@@ -1,4 +1,5 @@
 pyTelegramBotAPI
 lupa
 Flask
+openai
 
