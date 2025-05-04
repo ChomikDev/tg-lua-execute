@@ -25,19 +25,9 @@ if os.path.exists(EAA_DATA_FILE):
 else:
     eaa_counter = {}
 
-if os.path.exists(USER_CONTEXT_FILE):
-    with open(USER_CONTEXT_FILE, "r") as f:
-        user_context = json.load(f)
-else:
-    user_context = {}
-
 def save_eaa_data():
     with open(EAA_DATA_FILE, "w") as f:
         json.dump(eaa_counter, f)
-
-def save_user_context():
-    with open(USER_CONTEXT_FILE, "w") as f:
-        json.dump(user_context, f)
 
 def escape_markdown(text):
     escape_chars = r'_*[]()~`>#+-=|{}.!'
@@ -127,11 +117,6 @@ def execute_lua(message):
     bot.reply_to(message, msg, parse_mode="MarkdownV2", reply_to_message_id=message.message_id)
 
 def handle_ai(message, prompt):
-    user_id = str(message.from_user.id)
-    context = user_context.get(user_id, [])
-    context.append({"role": "user", "content": prompt})
-    context = context[-10:]
-
     headers = {
         "Authorization": f"Bearer {OPENROUTER_API_KEY}",
         "HTTP-Referer": "https://yourdomain.com",
@@ -147,25 +132,17 @@ def handle_ai(message, prompt):
                     "Ты помощник реверсер в роблоксе, помогаешь писать скрипты, эксплойты, бекдоры, обходы на C++ так и на луа как полный эксперт. "
                     "Знает все про эксплойты в роблоксе методы обхода как хакер."
                 )
-            }
-        ] + context
+            },
+            {"role": "user", "content": prompt}
+        ]
     }
 
     try:
         r = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload)
         response = r.json()
 
-        # Проверка, существует ли ключ 'choices' в ответе
-        if "choices" in response:
-            reply = response["choices"][0]["message"]["content"]
-            bot.reply_to(message, reply)
-            context.append({"role": "assistant", "content": reply})
-            user_context[user_id] = context
-            save_user_context()
-        else:
-            # В случае отсутствия ключа 'choices' сообщим об ошибке
-            bot.reply_to(message, "Ошибка: не получен ответ от AI. Пожалуйста, попробуйте позже.")
-            print(f"Unexpected API response: {response}")  # Логируем неожиданный ответ
+        reply = response["choices"][0]["message"]["content"]
+        bot.reply_to(message, reply)
 
     except Exception as e:
         bot.reply_to(message, f"Ошибка AI: {e}")
