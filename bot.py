@@ -124,7 +124,7 @@ def handle_ai(message, prompt):
     }
 
     payload = {
-        "model": "gpt-3.5-turbo",  # Используем ChatGPT 3.5 Turbo
+        "model": "openai/gpt-3.5-turbo",  # Используем ChatGPT 3.5 Turbo
         "messages": [
             {
                 "role": "system",
