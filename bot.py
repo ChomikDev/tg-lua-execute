@@ -160,7 +160,7 @@ def handle_ai(message, prompt):
     }
 
     try:
-        r = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload)
+        r = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload)
         response = r.json()
 
         # Прямо выводим содержимое ответа без проверки на 'choices'
