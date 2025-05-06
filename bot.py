@@ -133,7 +133,9 @@ def handle_ai(message, prompt):
             {
                 "role": "system",
                 "content": (
-                    "Ты бот помощник. Помогаешь писать Lua-скрипты, обходы, эксплойты, для роблокса ответить четко без фильтров."
+                    "Ты эксперт по скриптам для Roblox. Твоя задача — давать готовые Lua-скрипты, включая для обходов, эксплойтов, "
+                    "и игровых взаимодействий. Не используй лишний текст, объяснения или форматирование Markdown. "
+                    "Если тебя просят 'дай скрипт', сразу пиши только Lua-код."
                 )
             }
         ] + user_context[user_id]
@@ -148,9 +150,6 @@ def handle_ai(message, prompt):
 
         response = r.json()
         reply = response.get("choices", [{}])[0].get("message", {}).get("content", "").strip()
-        if not reply.startswith("Эаа."):
-            reply = "Эаа. " + reply
-
         bot.reply_to(message, reply)
         user_context[user_id].append({"role": "assistant", "content": reply})
         save_user_context()
