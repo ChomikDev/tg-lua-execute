@@ -152,38 +152,45 @@ def handle_all_messages(message):
             return
 
         elif text.lower() == "крутить эаа":
-            change = random.randint(-10, 10)  
-            balance = eaa_counter.get(username, 0)
-       if balance + change < 0:
-        change = -balance  
-           eaa_counter[username] = balance + change
-       save_eaa_data()
-     if change > 0:
-        msg = f"{mention(message.from_user)} крутит эаа и выигрывает {change} эаа!"
-    elif change < 0:
-        msg = f"{mention(message.from_user)} крутит эаа и теряет {-change} эаа..."
-    else:
-        msg = f"{mention(message.from_user)} крутит эаа и ничего не выигрывает."
+    change = random.randint(-10, 10)
+    balance = eaa_counter.get(username, 0)
+    
+    if balance + change < 0:
+        change = -balance
+    
+    eaa_counter[username] = balance + change
+    save_eaa_data()
 
-    bot.reply_to(message, msg, parse_mode="Markdown")
+    if change > 0:
+        bot.reply_to(message, f"{mention(message.from_user)} крутит эаа и получает {change} эаа", parse_mode="Markdown")
+    elif change < 0:
+        bot.reply_to(message, f"{mention(message.from_user)} крутит эаа и теряет {-change} эаа", parse_mode="Markdown")
+    else:
+        bot.reply_to(message, f"{mention(message.from_user)} крутит эаа, но ничего не получает...", parse_mode="Markdown")
     return
 
-
-        elif text.lower() == "бонус эаа":
+    elif text.lower() == "бонус эаа":
     now = datetime.utcnow().date()
-    last_bonus_date_str = last_bonus.get(username)
-    last_bonus_date = datetime.strptime(last_bonus_date_str, "%Y-%m-%d").date() if last_bonus_date_str else None
+    last_bonus_dict = eaa_counter.get("last_bonus", {})
+    last_bonus_date_str = last_bonus_dict.get(username)
+    
+    try:
+        last_bonus_date = datetime.strptime(last_bonus_date_str, "%Y-%m-%d").date() if last_bonus_date_str else None
+    except:
+        last_bonus_date = None
 
     if last_bonus_date == now:
         bot.reply_to(message, f"{mention(message.from_user)}, ты уже получил ежедневный бонус сегодня!", parse_mode="Markdown")
         return
 
-    bonus = random.randint(1, 500)
+    bonus = random.randint(50, 300)
     eaa_counter[username] = eaa_counter.get(username, 0) + bonus
-    last_bonus[username] = now.isoformat()
+    if "last_bonus" not in eaa_counter:
+        eaa_counter["last_bonus"] = {}
+
+    eaa_counter["last_bonus"][username] = now.isoformat()
 
     save_eaa_data()
-    save_last_bonus()
     bot.reply_to(message, f"{mention(message.from_user)} получил бонус: {bonus} эаа!", parse_mode="Markdown")
     return
 
