@@ -70,7 +70,6 @@ def send_welcome(message):
         "**Команды (работают везде):**\n"
         "- `execute [код]` — выполнить Lua скрипт\n"
         "- `ai [вопрос]` — AI-помощник\n"
-        "- `obfuscate [код]` — обфусцировать Lua код\n\n"
         "Внимание: эаа не пропадают, сохраняются навсегда!"
     )
     bot.reply_to(message, welcome_text, parse_mode="Markdown")
@@ -247,25 +246,6 @@ def handle_ai(message, prompt):
         save_user_context()
     except Exception as e:
         bot.reply_to(message, f"Ошибка AI: {str(e)}")
-
-def obfuscate_lua(code):
-    import string
-    import random
-
-    def rand_name(length=8):
-        return ''.join(random.choice(string.ascii_letters) for _ in range(length))
-
-    var_map = {}
-    tokens = re.findall(r'[a-zA-Z_][a-zA-Z0-9_]*', code)
-    for token in tokens:
-        if token not in var_map and token not in ("function", "local", "end", "if", "then", "else", "for", "in", "do", "return", "print"):
-            var_map[token] = rand_name()
-
-    for orig, new in var_map.items():
-        code = re.sub(rf'\b{orig}\b', new, code)
-
-    code = re.sub(r'\s+', ' ', code).strip()
-    return code
 
 def check_roblox_update():
     while True:
