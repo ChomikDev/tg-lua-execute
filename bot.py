@@ -170,13 +170,6 @@ def handle_all_messages(message):
     elif text.lower().startswith("ai"):
         prompt = text[2:].strip()
         handle_ai(message, prompt)
-    elif text.lower().startswith("obfuscate"):
-        code = text[len("obfuscate"):].strip()
-        if not code:
-            bot.reply_to(message, "Пожалуйста, укажи Lua код после команды obfuscate.")
-            return
-        obf_code = obfuscate_lua(code)
-        bot.reply_to(message, f"Обфусцированный код:\n```\n{obf_code}\n```", parse_mode="Markdown")
 
 def execute_lua(message):
     code = message.text[len("execute"):].strip()
@@ -191,17 +184,14 @@ def execute_lua(message):
     try:
         lua.execute(code)
         result = "\n".join(output)
-        escaped_result = escape_markdown(result)
-        escaped_code = escape_markdown(code)
 
         if result:
-            msg = f"*Callback:*\n`{escaped_result}`\n\n*Your Code:*\n```lua\n{escaped_code}\n```"
+            msg = f"*Ваш код:*\n```lua\n{code}\n```\n*Callback:*\n```\n{result}\n```"
         else:
-            msg = f"*Successfully runned!*\n```lua\n{escaped_code}\n```"
+            msg = f"*Ваш код:*\n```lua\n{code}\n```\n*Успешно выполнено!*"
     except Exception as e:
-        escaped_error = str(e).replace('`', "'")
-        escaped_code = escape_markdown(code)
-        msg = f"*Callback:*\n`{escaped_error}`\n\n*Your Code:*\n```lua\n{escaped_code}\n```"
+        error_text = str(e).replace('`', "'")
+        msg = f"*Ваш код:*\n```lua\n{code}\n```\n*Callback:*\n```\n{error_text}\n```"
 
     bot.reply_to(message, msg, parse_mode="Markdown")
 
@@ -248,28 +238,32 @@ def handle_ai(message, prompt):
         bot.reply_to(message, f"Ошибка AI: {str(e)}")
 
 def check_roblox_update():
-    while True:
-        try:
-            url = "https://setup.roblox.com/version"
-            r = requests.get(url)
-            if r.status_code == 200:
-                latest_version = r.text.strip()
-                if roblox_version_info["version"] != latest_version:
-                    roblox_version_info["version"] = latest_version
-                    roblox_version_info["date"] = datetime.utcnow().isoformat()
-                    save_roblox_version()
+    last_notified_version = roblox_version_info.get("version")
 
-                    text = f"Обновление Roblox обнаружено!\nНовая версия: {latest_version}\nДата: {roblox_version_info['date']}"
-                    for chat_id in eaa_counter.get("groups", []):
-                        try:
-                            bot.send_message(chat_id, text)
-                        except:
-                            continue
-            time.sleep(3600)
-        except:
-            time.sleep(3600)
+    def notify(version):
+        roblox_version_info["version"] = version
+        roblox_version_info["date"] = datetime.utcnow().isoformat()
+        save_roblox_version()
+        text = f"Обновление Roblox обнаружено!\nНовая версия: {version}\nДата: {roblox_version_info['date']}"
+        for chat_id in eaa_counter.get("groups", []):
+            try:
+                bot.send_message(chat_id, text)
+            except:
+                continue
 
-threading.Thread(target=check_roblox_update, daemon=True).start()
+    while True:
+        try:
+            url = "https://setup.roblox.com/version"
+            r = requests.get(url)
+            if r.status_code == 200:
+                latest_version = r.text.strip()
+                if roblox_version_info["version"] != latest_version:
+                    notify(latest_version)
+        except:
+            pass
+
+        time.sleep(60) 
+
 
 @app.route(WEBHOOK_PATH, methods=["POST"])
 def webhook():
