@@ -222,7 +222,7 @@ def handle_ai(message, prompt):
     }
 
     payload = {
-        "model": "nousresearch/mythomax-l2-13b",
+        "model": "openai/gpt-3.5-turbo",
         "messages": [
             {
                 "role": "system",
