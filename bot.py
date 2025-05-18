@@ -21,12 +21,19 @@ WEBHOOK_URL = f"https://tg-lua-execute.onrender.com{WEBHOOK_PATH}"
 EAA_DATA_FILE = "eaa_counter.json"
 USER_CONTEXT_FILE = "user_context.json"
 ROBLOX_VERSION_FILE = "roblox_version.json"
+BONUS_FILE = "last_bonus.json"
 
 if os.path.exists(EAA_DATA_FILE):
     with open(EAA_DATA_FILE, "r") as f:
         eaa_counter = json.load(f)
 else:
     eaa_counter = {}
+
+if os.path.exists(BONUS_FILE):
+    with open(BONUS_FILE, "r") as f:
+        last_bonus = json.load(f)
+else:
+    last_bonus = {}
 
 if os.path.exists(USER_CONTEXT_FILE):
     with open(USER_CONTEXT_FILE, "r") as f:
@@ -43,6 +50,10 @@ else:
 def save_eaa_data():
     with open(EAA_DATA_FILE, "w") as f:
         json.dump(eaa_counter, f)
+
+def save_last_bonus():
+    with open(BONUS_FILE, "w") as f:
+        json.dump(last_bonus, f)
 
 def save_user_context():
     with open(USER_CONTEXT_FILE, "w") as f:
@@ -141,31 +152,42 @@ def handle_all_messages(message):
             return
 
         elif text.lower() == "крутить эаа":
-            got = random.randint(1, 10)
-            eaa_counter[username] = eaa_counter.get(username, 0) + got
-            save_eaa_data()
-            bot.reply_to(message, f"{mention(message.from_user)} крутит эаа и получает {got} эаа", parse_mode="Markdown")
-            return
+            change = random.randint(-10, 10)  
+            balance = eaa_counter.get(username, 0)
+       if balance + change < 0:
+        change = -balance  
+           eaa_counter[username] = balance + change
+       save_eaa_data()
+     if change > 0:
+        msg = f"{mention(message.from_user)} крутит эаа и выигрывает {change} эаа!"
+    elif change < 0:
+        msg = f"{mention(message.from_user)} крутит эаа и теряет {-change} эаа..."
+    else:
+        msg = f"{mention(message.from_user)} крутит эаа и ничего не выигрывает."
+
+    bot.reply_to(message, msg, parse_mode="Markdown")
+    return
+
 
         elif text.lower() == "бонус эаа":
-            now = datetime.utcnow().date()
-            last_bonus_date_str = eaa_counter.get("last_bonus", {}).get(username)
-            last_bonus_date = datetime.strptime(last_bonus_date_str, "%Y-%m-%d").date() if last_bonus_date_str else None
+    now = datetime.utcnow().date()
+    last_bonus_date_str = last_bonus.get(username)
+    last_bonus_date = datetime.strptime(last_bonus_date_str, "%Y-%m-%d").date() if last_bonus_date_str else None
 
-            if last_bonus_date == now:
-                bot.reply_to(message, f"{mention(message.from_user)}, ты уже получил ежедневный бонус сегодня!", parse_mode="Markdown")
-                return
+    if last_bonus_date == now:
+        bot.reply_to(message, f"{mention(message.from_user)}, ты уже получил ежедневный бонус сегодня!", parse_mode="Markdown")
+        return
 
-            bonus = random.randint(1, 500)
-            eaa_counter[username] = eaa_counter.get(username, 0) + bonus
+    bonus = random.randint(1, 500)
+    eaa_counter[username] = eaa_counter.get(username, 0) + bonus
+    last_bonus[username] = now.isoformat()
 
-            eaa_counter["last_bonus"][username] = now.isoformat()
+    save_eaa_data()
+    save_last_bonus()
+    bot.reply_to(message, f"{mention(message.from_user)} получил бонус: {bonus} эаа!", parse_mode="Markdown")
+    return
 
-            save_eaa_data()
-            bot.reply_to(message, f"{mention(message.from_user)} получил бонус: {bonus} эаа!", parse_mode="Markdown")
-            return
-
-    if text.lower().startswith("execute"):
+   if text.lower().startswith("execute"):
         execute_lua(message)
     elif text.lower().startswith("ai"):
         prompt = text[2:].strip()
