@@ -267,7 +267,29 @@ def obfuscate_lua(code):
     code = re.sub(r'\s+', ' ', code).strip()
     return code
 
-# Set webhook for Flask app
+def check_roblox_update():
+    while True:
+        try:
+            url = "https://setup.roblox.com/version"
+            r = requests.get(url)
+            if r.status_code == 200:
+                latest_version = r.text.strip()
+                if roblox_version_info["version"] != latest_version:
+                    roblox_version_info["version"] = latest_version
+                    roblox_version_info["date"] = datetime.utcnow().isoformat()
+                    save_roblox_version()
+
+                    text = f"Обновление Roblox обнаружено!\nНовая версия: {latest_version}\nДата: {roblox_version_info['date']}"
+                    for chat_id in eaa_counter.get("groups", []):
+                        try:
+                            bot.send_message(chat_id, text)
+                        except:
+                            continue
+            time.sleep(3600)
+        except:
+            time.sleep(3600)
+
+threading.Thread(target=check_roblox_update, daemon=True).start()
 
 @app.route(WEBHOOK_PATH, methods=["POST"])
 def webhook():
