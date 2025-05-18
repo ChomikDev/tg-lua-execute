@@ -103,13 +103,21 @@ def handle_all_messages(message):
             bot.reply_to(message, f"{mention(message.from_user)} накопил эаа +1", parse_mode="Markdown")
             return
 
-        elif text.lower() == "топ эаа":
-            filtered = {k: v for k, v in eaa_counter.items() if k != "last_bonus"}
-            top = sorted(filtered.items(), key=lambda x: x[1], reverse=True)[:10]
-            lines = [f"{i+1}. @{user} — {count}" for i, (user, count) in enumerate(top)]
-            reply = "Топ 10 эаа:\n" + "\n".join(lines)
-            bot.reply_to(message, reply)
-            return
+   elif text.lower() == "топ эаа":
+    filtered = {k: v for k, v in eaa_counter.items() if k != "last_bonus"}
+    top = sorted(filtered.items(), key=lambda x: x[1], reverse=True)[:10]
+    lines = []
+    for i, (user, count) in enumerate(top):
+        if user.startswith("id"):
+            link = f"https://t.me/{user}"
+        else:
+            link = f"https://t.me/{user}"
+        display_name = user.replace("_", " ").title()
+        lines.append(f"{i+1}. [{display_name}]({link}) — {count}")
+        reply = "Топ 10 эаа:\n" + "\n".join(lines)
+        bot.reply_to(message, reply, parse_mode="Markdown")
+        return
+
 
         elif text.lower() == "мои эаа":
             count = eaa_counter.get(username, 0)
@@ -151,23 +159,21 @@ def handle_all_messages(message):
             bot.reply_to(message, f"{mention(message.from_user)} передал {mention(to_user)} {amount} эаа", parse_mode="Markdown")
             return
 
-        elif text.lower() == "крутить эаа":
-    change = random.randint(-10, 10)
+elif text.lower() == "крутить эаа":
+    change = random.randint(-1000, 10000)
     balance = eaa_counter.get(username, 0)
-    
-    if balance + change < 0:
-        change = -balance
-    
+
     eaa_counter[username] = balance + change
     save_eaa_data()
 
     if change > 0:
-        bot.reply_to(message, f"{mention(message.from_user)} крутит эаа и получает {change} эаа", parse_mode="Markdown")
+        bot.reply_to(message, f"{mention(message.from_user)} крутит эаа и выигрывает {change} эаа!", parse_mode="Markdown")
     elif change < 0:
-        bot.reply_to(message, f"{mention(message.from_user)} крутит эаа и теряет {-change} эаа", parse_mode="Markdown")
+        bot.reply_to(message, f"{mention(message.from_user)} крутит эаа и проигрывает {-change} эаа...", parse_mode="Markdown")
     else:
-        bot.reply_to(message, f"{mention(message.from_user)} крутит эаа, но ничего не получает...", parse_mode="Markdown")
+        bot.reply_to(message, f"{mention(message.from_user)} крутит эаа, но ничего не происходит.", parse_mode="Markdown")
     return
+
 
     elif text.lower() == "бонус эаа":
     now = datetime.utcnow().date()
