@@ -95,7 +95,7 @@ def handle_all_messages(message):
 
     def mention(user):
         return f"[{user.first_name}](tg://user?id={user.id})"
-   
+
     if is_group_chat(message):
         if re.match(r"^эаа$", text, re.IGNORECASE):
             eaa_counter[username] = eaa_counter.get(username, 0) + 1
@@ -103,21 +103,17 @@ def handle_all_messages(message):
             bot.reply_to(message, f"{mention(message.from_user)} накопил эаа +1", parse_mode="Markdown")
             return
 
-   elif text.lower() == "топ эаа":
-    filtered = {k: v for k, v in eaa_counter.items() if k != "last_bonus"}
-    top = sorted(filtered.items(), key=lambda x: x[1], reverse=True)[:10]
-    lines = []
-    for i, (user, count) in enumerate(top):
-        if user.startswith("id"):
-            link = f"https://t.me/{user}"
-        else:
-            link = f"https://t.me/{user}"
-        display_name = user.replace("_", " ").title()
-        lines.append(f"{i+1}. [{display_name}]({link}) — {count}")
-        reply = "Топ 10 эаа:\n" + "\n".join(lines)
-        bot.reply_to(message, reply, parse_mode="Markdown")
-        return
-
+        elif text.lower() == "топ эаа":
+            filtered = {k: v for k, v in eaa_counter.items() if k != "last_bonus"}
+            top = sorted(filtered.items(), key=lambda x: x[1], reverse=True)[:10]
+            lines = []
+            for i, (user, count) in enumerate(top):
+                link = f"https://t.me/{user}"
+                display_name = user.replace("_", " ").title()
+                lines.append(f"{i+1}. [{display_name}]({link}) — {count}")
+            reply = "Топ 10 эаа:\n" + "\n".join(lines)
+            bot.reply_to(message, reply, parse_mode="Markdown")
+            return
 
         elif text.lower() == "мои эаа":
             count = eaa_counter.get(username, 0)
