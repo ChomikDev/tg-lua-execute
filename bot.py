@@ -213,8 +213,7 @@ def execute_lua(message):
             msg = f"*Ваш код:*\n```lua\n{code}\n```\n*Успешно выполнено!*"
     except Exception as e:
         error_text = str(e).replace('`', "'")
-        msg = f"*Ваш код:*\n```lua\n{code}\n```\n*Callback:*\n```
-{error_text}\n```"
+        msg = f"*Ваш код:*\n```lua\n{code}\n```\n*Callback:*\n```{error_text}\n```"
 
     bot.reply_to(message, msg, parse_mode="Markdown")
 
