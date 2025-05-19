@@ -208,8 +208,7 @@ def execute_lua(message):
         lua.execute(code)
         result = "\n".join(output)
         if result:
-            msg = f"*Ваш код:*\n```lua\n{code}\n```\n*Callback:*\n```
-{result}\n```"
+            msg = f"""*Ваш код:*\n```lua\n{code}\n```\n*Callback:*\n```\n{result}\n```"""
         else:
             msg = f"*Ваш код:*\n```lua\n{code}\n```\n*Успешно выполнено!*"
     except Exception as e:
