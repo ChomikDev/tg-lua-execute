@@ -129,7 +129,7 @@ def handle_all_messages(message):
                 return
 
             if not message.reply_to_message:
-                bot.reply_to(message, "надо использовать ответом на сообщение кому хотите дать эаа")
+                bot.reply_to(message, "надо использовать ответом на сообщение кому хотите дать")
                 return
 
             to_user = message.reply_to_message.from_user
