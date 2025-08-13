@@ -70,19 +70,17 @@ def escape_markdown(text):
 @bot.message_handler(commands=["start"])
 def send_welcome(message):
     welcome_text = (
-        "Добро пожаловать в Ебланище Бот!\n\n"
         "**Команды (работают в группах):**\n"
         "- `эаа` — накопить эаа +1\n"
         "- `топ эаа` — топ 10 эаа\n"
-        "- `мои эаа` — узнать сколько у тебя эаа\n"
-        "- `дать эаа [число]` — передать эаа другому участнику (только не боту и не себе)\n"
-        "- `крутить эаа` — шанс получить от 1 до 10 эаа\n"
-        "- `бонус эаа` — получает ежедневный бонус\n\n"
+        "- `мои эаа` — всего эаа\n"
+        "- `дать эаа [число]` — передать эаа (только не боту и не себе)\n"
+        "- `крутить эаа` — шанс получить от -9000 до 10000 эаа\n"
+        "- `бонус эаа` — ежедневный бонус\n\n"
         "**Команды (работают везде):**\n"
         "- `execute [код]` — выполнить Lua скрипт\n"
         "- `ai [вопрос]` — AI-помощник\n"
-        "Внимание: эаа не пропадают, сохраняются навсегда!"
-    )
+        )
     bot.reply_to(message, welcome_text, parse_mode="Markdown")
 
 def is_group_chat(message):
@@ -121,29 +119,29 @@ def handle_all_messages(message):
         elif text.lower().startswith("дать эаа"):
             parts = text.split()
             if len(parts) != 3:
-                bot.reply_to(message, "Использование: дать эаа [число], ответом на сообщение участника.")
+                bot.reply_to(message, "дать эаа ответом на сообщение")
                 return
 
             try:
                 amount = int(parts[2])
             except:
-                bot.reply_to(message, "Число должно быть целым.")
+                bot.reply_to(message, "число должно быть целым")
                 return
 
             if not message.reply_to_message:
-                bot.reply_to(message, "Эту команду нужно использовать ответом на сообщение пользователя, которому хотите дать эаа.")
+                bot.reply_to(message, "надо использовать ответом на сообщение кому хотите дать эаа")
                 return
 
             to_user = message.reply_to_message.from_user
             to_username = to_user.username or f"id{to_user.id}"
 
             if to_user.is_bot or to_user.id == message.from_user.id:
-                bot.reply_to(message, "Нельзя передавать эаа ботам или самому себе.")
+                bot.reply_to(message, "нельзя давать эаа ботам или себе")
                 return
 
             sender_balance = eaa_counter.get(username, 0)
             if sender_balance < amount:
-                bot.reply_to(message, "Недостаточно эаа для передачи.")
+                bot.reply_to(message, "слишком мало эаа")
                 return
 
             eaa_counter[username] = sender_balance - amount
@@ -153,17 +151,17 @@ def handle_all_messages(message):
             bot.reply_to(message, f"{mention(message.from_user)} передал {mention(to_user)} {amount} эаа", parse_mode="Markdown")
 
         elif text.lower() == "крутить эаа":
-            change = random.randint(-1000, 10000)
+            change = random.randint(-9000, 10000)
             balance = eaa_counter.get(username, 0)
             eaa_counter[username] = balance + change
             save_eaa_data()
 
             if change > 0:
-                bot.reply_to(message, f"{mention(message.from_user)} крутит эаа и выигрывает {change} эаа!", parse_mode="Markdown")
+                bot.reply_to(message, f"{mention(message.from_user)} выигрывает {change} эаа", parse_mode="Markdown")
             elif change < 0:
-                bot.reply_to(message, f"{mention(message.from_user)} крутит эаа и проигрывает {-change} эаа...", parse_mode="Markdown")
+                bot.reply_to(message, f"{mention(message.from_user)} проигрывает {-change} эаа", parse_mode="Markdown")
             else:
-                bot.reply_to(message, f"{mention(message.from_user)} крутит эаа, но ничего не происходит.", parse_mode="Markdown")
+                bot.reply_to(message, f"{mention(message.from_user)} крутит эаа но ничего не происходит", parse_mode="Markdown")
 
         elif text.lower() == "бонус эаа":
             now = datetime.utcnow().date()
@@ -176,17 +174,17 @@ def handle_all_messages(message):
                 last_bonus_date = None
 
             if last_bonus_date == now:
-                bot.reply_to(message, f"{mention(message.from_user)}, ты уже получил ежедневный бонус сегодня!", parse_mode="Markdown")
+                bot.reply_to(message, f"{mention(message.from_user)}, ты уже получил бонус сегодня", parse_mode="Markdown")
                 return
 
-            bonus = random.randint(50, 300)
+            bonus = random.randint(-1000, 10000)
             eaa_counter[username] = eaa_counter.get(username, 0) + bonus
             if "last_bonus" not in eaa_counter:
                 eaa_counter["last_bonus"] = {}
 
             eaa_counter["last_bonus"][username] = now.isoformat()
             save_eaa_data()
-            bot.reply_to(message, f"{mention(message.from_user)} получил бонус: {bonus} эаа!", parse_mode="Markdown")
+            bot.reply_to(message, f"{mention(message.from_user)} получил бонус {bonus} эаа", parse_mode="Markdown")
 
     if text.lower().startswith("execute"):
         execute_lua(message)
@@ -263,7 +261,7 @@ def check_roblox_update():
         roblox_version_info["version"] = version
         roblox_version_info["date"] = datetime.utcnow().isoformat()
         save_roblox_version()
-        text = f"Обновление Roblox обнаружено!\nНовая версия: {version}\nДата: {roblox_version_info['date']}"
+        text = f"обнаружено обновление клиента\nверсия: {version}\nдата: {roblox_version_info['date']}"
         for chat_id in eaa_counter.get("groups", []):
             try:
                 bot.send_message(chat_id, text)
@@ -281,7 +279,7 @@ def check_roblox_update():
         except:
             pass
 
-        time.sleep(60)
+        time.sleep(1)
 
 @app.route(WEBHOOK_PATH, methods=["POST"])
 def webhook():
