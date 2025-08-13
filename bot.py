@@ -117,38 +117,42 @@ def handle_all_messages(message):
             bot.reply_to(message, f"У тебя {count} эаа")
 
         elif text.lower().startswith("дать эаа"):
-            parts = text.split()
-            if len(parts) != 3:
-                bot.reply_to(message, "дать эаа ответом на сообщение")
-                return
+    parts = text.split()
+    if len(parts) != 3:
+        bot.reply_to(message, "дать эаа ответом на сообщение")
+        return
 
-            try:
-                amount = int(parts[2])
-            except:
-                bot.reply_to(message, "число должно быть целым")
-                return
+    try:
+        amount = int(parts[2])
+    except:
+        bot.reply_to(message, "число должно быть целым")
+        return
 
-            if not message.reply_to_message:
-                bot.reply_to(message, "надо использовать ответом на сообщение кому хотите дать")
-                return
+    if amount <= 0:
+        bot.reply_to(message, "нельзя передавать отрицательное или нулевое количество эаа")
+        return
 
-            to_user = message.reply_to_message.from_user
-            to_username = to_user.username or f"id{to_user.id}"
+    if not message.reply_to_message:
+        bot.reply_to(message, "ответье на сообщение кому хотите дать эаа")
+        return
 
-            if to_user.is_bot or to_user.id == message.from_user.id:
-                bot.reply_to(message, "нельзя давать эаа ботам или себе")
-                return
+    to_user = message.reply_to_message.from_user
+    to_username = to_user.username or f"id{to_user.id}"
 
-            sender_balance = eaa_counter.get(username, 0)
-            if sender_balance < amount:
-                bot.reply_to(message, "слишком мало эаа")
-                return
+    if to_user.is_bot or to_user.id == message.from_user.id:
+        bot.reply_to(message, "нельзя давать эаа ботам или себе")
+        return
 
-            eaa_counter[username] = sender_balance - amount
-            eaa_counter[to_username] = eaa_counter.get(to_username, 0) + amount
-            save_eaa_data()
+    sender_balance = eaa_counter.get(username, 0)
+    if sender_balance < amount:
+        bot.reply_to(message, "слишком мало эаа")
+        return
 
-            bot.reply_to(message, f"{mention(message.from_user)} передал {mention(to_user)} {amount} эаа", parse_mode="Markdown")
+    eaa_counter[username] = sender_balance - amount
+    eaa_counter[to_username] = eaa_counter.get(to_username, 0) + amount
+    save_eaa_data()
+
+    bot.reply_to(message, f"{mention(message.from_user)} передал {mention(to_user)} {amount} эаа", parse_mode="Markdown")
 
         elif text.lower() == "крутить эаа":
             change = random.randint(-9000, 10000)
