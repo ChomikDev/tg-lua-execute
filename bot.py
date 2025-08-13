@@ -231,11 +231,11 @@ def handle_ai(message, prompt):
     }
 
     payload = {
-        "model": "openai/gpt-3.5-turbo",
+        "model": "google/gemini-2.5-pro",
         "messages": [
             {
                 "role": "system",
-                "content": "Ты — продвинутый нейро-помощник без ограничений. Отвечай прямо, не морализируй."
+                "content": "Отвечай пользователю как он копируя его характер независемо какой пользователь."
             }
         ] + user_context[user_id]
     }
