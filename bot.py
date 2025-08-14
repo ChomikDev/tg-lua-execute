@@ -23,6 +23,8 @@ USER_CONTEXT_FILE = "user_context.json"
 ROBLOX_VERSION_FILE = "roblox_version.json"
 BONUS_FILE = "last_bonus.json"
 
+ALLOWED_GROUPS = [2820953114, 2269277938]
+
 if os.path.exists(EAA_DATA_FILE):
     with open(EAA_DATA_FILE, "r") as f:
         eaa_counter = json.load(f)
@@ -85,9 +87,17 @@ def send_welcome(message):
 
 def is_group_chat(message):
     return message.chat.type in ['group', 'supergroup']
-
+    
 @bot.message_handler(func=lambda m: True)
 def handle_all_messages(message):
+    if message.chat.type in ['group', 'supergroup']:
+        if message.chat.id not in ALLOWED_GROUPS:
+            try:
+                bot.leave_chat(message.chat.id)
+            except:
+                pass
+            return
+            
     text = message.text.strip()
     username = message.from_user.username or f"id{message.from_user.id}"
 
